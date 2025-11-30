@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Interactive Paper Cut Floral</title>
+    <style>
+        :root {
+            --mouseX: 0.5;
+            --mouseY: 0.5;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f3e2d9;
+        }
+
+        /* Main container holding layers for parallax */
+        .scene-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            perspective: 1000px;
+        }
+
+        /* Layer 1: The textured background (moves slowly) */
+        .background-layer {
+            position: absolute;
+            top: -5%; left: -5%; width: 110%; height: 110%;
+            background-image: 
+                linear-gradient(45deg, rgba(245, 230, 223, 0.4) 25%, transparent 25%, transparent 75%, rgba(245, 230, 223, 0.4) 75%, rgba(245, 230, 223, 0.4)),
+                linear-gradient(-45deg, rgba(245, 230, 223, 0.4) 25%, transparent 25%, transparent 75%, rgba(245, 230, 223, 0.4) 75%, rgba(245, 230, 223, 0.4)),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px, 20px 20px, 10px 10px;
+            /* Parallax movement based on CSS variables updated by JS */
+            transform: translate(calc((var(--mouseX) - 0.5) * -20px), calc((var(--mouseY) - 0.5) * -10px));
+            transition: transform 12s ease-out;
+            z-index: 0;
+        }
+
+        /* Layer 2: The main SVG elements (moves faster) */
+        .svg-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            /* Stronger parallax movement */
+            transform: translate(calc((var(--mouseX) - 0.5) * -50px), calc((var(--mouseY) - 0.5) * -30px));
+            transition: transform 12s ease-out;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* Layer 3: Petal Container */
+        #petal-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Layer 4: Noise Textural Overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.06;
+            /* SVG noise filter data uri for a paper feel */
+            /* background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); */
+        }
+
+
+        /* --- CSS ANIMATIONS --- */
+        /* Base sway */
+        @keyframes branchSwayGentle {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(1deg); }
+        }
+        /* More intense sway for wind gusts */
+        @keyframes branchSwayGust {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(3deg); }
+            75% { transform: rotate(-1deg); }
+        }
+
+        /* Subtle leaf flutter */
+        @keyframes flutter {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+
+        /* Applying animations */
+        .anim-sway-slow { animation: branchSwayGentle 6s ease-in-out infinite; transform-origin: bottom left; }
+        .anim-sway-fast { animation: branchSwayGentle 5s ease-in-out infinite reverse; transform-origin: top left; }
+        .anim-sway-right { animation: branchSwayGentle 7s ease-in-out infinite; transform-origin: bottom right; }
+        .anim-flutter { animation: flutter 3s ease-in-out infinite; transform-origin: center; }
+
+        /* State class added by JS during a click */
+        .wind-gust-active .anim-sway-slow,
+        .wind-gust-active .anim-sway-fast,
+        .wind-gust-active .anim-sway-right {
+            animation: branchSwayGust 1s ease-in-out;
+        }
+
+        /* JS-Driven Petal Styling */
+        .petal-js {
+            position: absolute;
+            background: radial-gradient(circle at 30% 30%, #f9dce0 0%, #e68a83 100%);
+            width: 12px;
+            height: 14px;
+            border-radius: 100% 0 100% 0;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.15);
+            pointer-events: none;
+            will-change: transform, opacity;
+        }
+
+        /* SVG sizing consistency */
+        @media (min-aspect-ratio: 16/9) { .overlay-svg { width: 100%; height: auto; top: 50%; transform: translateY(-50%); }}
+        @media (max-aspect-ratio: 16/9) { .overlay-svg { width: auto; height: 100%; left: 50%; transform: translateX(-50%); }}
+    </style>
+</head>
+<body>
+    <div class="scene-container" id="mainScene">
+        <div class="background-layer"></div>
+        
+        <div class="svg-layer">
+            <svg class="overlay-svg" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="flowerGrad1" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" style="stop-color:#ffffff" />
+                        <stop offset="60%" style="stop-color:#f9dce0" />
+                        <stop offset="100%" style="stop-color:#f2bdc3" />
+                    </radialGradient>
+                    <radialGradient id="flowerCenterGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" style="stop-color:#e68a83" />
+                        <stop offset="100%" style="stop-color:#d97169" />
+                    </radialGradient>
+                    <linearGradient id="leafDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#bca299" />
+                        <stop offset="100%" style="stop-color:#9e837a" />
+                    </linearGradient>
+                    <linearGradient id="leafPinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#eacbc6" />
+                        <stop offset="100%" style="stop-color:#dcb0a9" />
+                    </linearGradient>
+
+                    <filter id="paperShadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="5" result="blur" />
+                        <feOffset in="blur" dx="3" dy="6" result="offsetBlur" />
+                        <feFlood flood-color="#5a3a2f" flood-opacity="0.4" result="offsetColor" />
+                        <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetShadow" />
+                        <feMerge>
+                            <feMergeNode in="offsetShadow" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                     <filter id="paperShadowSoft" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="blur" />
+                        <feOffset in="blur" dx="2" dy="3" result="offsetBlur" />
+                        <feFlood flood-color="#5a3a2f" flood-opacity="0.3" result="offsetColor" />
+                        <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetShadow" />
+                        <feMerge>
+                            <feMergeNode in="offsetShadow" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+
+                    <g id="cherryBlossom">
+                        <g filter="url(#paperShadow)">
+                            <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(0) scale(1)"/>
+                            <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(72) scale(1)"/>
+                            <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(144) scale(1)"/>
+                            <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(216) scale(1)"/>
+                            <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(288) scale(1)"/>
+                        </g>
+                        <circle cx="0" cy="0" r="15" fill="url(#flowerCenterGrad)" filter="url(#paperShadowSoft)"/>
+                        <g stroke="#c45e54" stroke-width="2" fill="none">
+                            <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(10)"/>
+                            <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(80)"/>
+                            <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(150)"/>
+                            <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(220)"/>
+                            <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(290)"/>
+                        </g>
+                    </g>
+
+                    <path id="leafShape1" d="M0,0 Q30,-40 60,0 Q30,40 0,0 Z" filter="url(#paperShadow)"/>
+                    <path id="leafShape2" d="M0,0 Q40,-60 80,0 Q40,60 0,0 Z" filter="url(#paperShadow)"/>
+                    <circle id="berry" r="10" fill="url(#flowerCenterGrad)" filter="url(#paperShadowSoft)"/>
+                </defs>
+
+                <g class="anim-sway-slow" transform-origin="100px 950px"> 
+                    <g transform="translate(100, 950)">
+                        <path d="M0,0 C50,-50 150,-150 300,-200 M150,-150 C200,-250 180,-350 220,-450 M50,-50 C-20,-150 10,-250 -30,-350" stroke="#a68b83" stroke-width="4" fill="none" filter="url(#paperShadowSoft)"/>
+                        <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(20, -80) rotate(-30) scale(1.2)" class="anim-flutter"/>
+                        <use href="#leafShape1" fill="url(#leafDarkGrad)" transform="translate(280, -180) rotate(60) scale(1.5)" class="anim-flutter"/>
+                        <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(350, -100) rotate(10) scale(1.1)"/>
+                        <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(-40, -200) rotate(-80) scale(1)"/>
+                        <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(100, -10) rotate(20) scale(1.3)" class="anim-flutter"/>
+                        <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(320, -250) rotate(45) scale(1)"/>
+                        <use href="#cherryBlossom" transform="translate(180, -320) scale(1.2)" class="anim-flutter"/> 
+                        <use href="#cherryBlossom" transform="translate(340, -450) scale(0.8) rotate(30)"/>
+                        <use href="#cherryBlossom" transform="translate(80, -180) scale(1.3)" class="anim-flutter"/>
+                        <use href="#cherryBlossom" transform="translate(-20, -300) scale(0.9) rotate(-20)"/>
+                        <use href="#cherryBlossom" transform="translate(280, -120) scale(1) rotate(10)"/>
+                        <use href="#cherryBlossom" transform="translate(140, 50) scale(1.4) rotate(-10)" class="anim-flutter"/>
+                        <use href="#cherryBlossom" transform="translate(380, 0) scale(0.9) rotate(20)"/>
+                        <use href="#berry" transform="translate(360, -320)"/>
+                        <use href="#berry" transform="translate(240, -400) scale(0.8)"/>
+                        <use href="#berry" transform="translate(40, -400)"/>
+                        <use href="#berry" transform="translate(480, -100) scale(1.2)"/>
+                    </g>
+                </g>
+
+                 <g class="anim-sway-fast" transform-origin="200px 100px">
+                    <g transform="translate(200, 100)">
+                        <path d="M0,0 C100,50 250,20 400,100 M250,20 C300,-50 400,-30 500,0" stroke="#a68b83" stroke-width="4" fill="none" filter="url(#paperShadowSoft)"/>
+                        <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(50, 0) rotate(10) scale(1.2)"/>
+                        <use href="#leafShape1" fill="url(#leafDarkGrad)" transform="translate(300, 80) rotate(90) scale(1.3)" class="anim-flutter"/>
+                        <use href="#leafShape2" fill="url(#leafPinkGrad)" transform="translate(150, 80) rotate(40) scale(1.1)"/>
+                        <use href="#cherryBlossom" transform="translate(200, 30) scale(0.9) rotate(-20)" class="anim-flutter"/>
+                        <g transform="translate(480, 80)">
+                            <use href="#berry" transform="translate(0,0) scale(0.8)"/>
+                            <use href="#berry" transform="translate(20,10) scale(0.9)"/>
+                            <use href="#berry" transform="translate(10,-15) scale(0.7)"/>
+                        </g>
+                        <use href="#berry" transform="translate(20, 150)"/>
+                        <use href="#berry" transform="translate(-50, 80) scale(0.8)"/>
+                    </g>
+                </g>
+                
+                <g class="anim-sway-right" transform-origin="1800px 800px">
+                    <g transform="translate(1800, 800)">
+                        <path d="M0,0 C-50,-50 -100,-150 -200,-250 M-100,-150 C-50,-250 50,-300 0,-400" stroke="#a68b83" stroke-width="3" fill="none" filter="url(#paperShadowSoft)"/>
+                        <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(-50, -80) rotate(-80) scale(1)" class="anim-flutter"/>
+                        <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(-180, -180) rotate(-40) scale(1.2)"/>
+                        <use href="#berry" transform="translate(-100, -280) scale(1.3)"/>
+                        <use href="#berry" transform="translate(-250, -350) scale(1.1)"/>
+                    </g>
+                </g>
+
+                 <g class="anim-sway-fast" transform-origin="1750px 150px">
+                    <g transform="translate(1750, 150)">
+                        <path d="M0,0 C-30,30 -80,80 -150,120 M-80,80 C-120,40 -180,20 -250,50" stroke="#a68b83" stroke-width="3" fill="none" filter="url(#paperShadowSoft)"/>
+                        <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(-50, 50) rotate(30) scale(0.8)" class="anim-flutter"/>
+                        <g transform="translate(-180, -50)">
+                            <use href="#berry" transform="translate(0,0) scale(0.8)"/>
+                            <use href="#berry" transform="translate(30,10) scale(0.9)"/>
+                            <use href="#berry" transform="translate(15,-20) scale(0.7)"/>
+                            <use href="#berry" transform="translate(50,-10) scale(0.8)"/>
+                        </g>
+                    </g>
+                </g>
+                <use href="#berry" transform="translate(1100, 200) scale(0.9)"/>
+                <use href="#berry" transform="translate(1300, 750) scale(1.1)"/>
+                <use href="#berry" transform="translate(600, 950) scale(1)"/>
+            </svg>
+        </div>
+
+        <div id="petal-container"></div>
+        <div class="noise-overlay"></div>
+    </div>
+
+    <script>
+        // ================= Parallax Effect =================
+        document.addEventListener('mousemove', (e) => {
+            const mouseX = e.clientX / window.innerWidth;
+            const mouseY = e.clientY / window.innerHeight;
+            // Update CSS variables that control the transform positions
+            document.documentElement.style.setProperty('--mouseX', mouseX);
+            document.documentElement.style.setProperty('--mouseY', mouseY);
+        });
+
+
+        // ================= Advanced Petal Physics =================
+        const petalContainer = document.getElementById('petal-container');
+        let activePetals = [];
+
+        class Petal {
+            constructor(isBurst = false) {
+                this.element = document.createElement('div');
+                this.element.classList.add('petal-js');
+                
+                // Initial Position
+                this.x = Math.random() * window.innerWidth;
+                // Burst petals start higher up
+                this.y = isBurst ? -100 : Math.random() * window.innerHeight * -1;
+                
+                // Physics Properties
+                this.size = Math.random() * 0.6 + 0.4;
+                this.speedY = Math.random() * 1.5 + 0.5;
+                // Sinusoidal drift properties
+                this.driftAngle = Math.random() * Math.PI * 2; 
+                this.driftSpeed = Math.random() * 0.02 + 0.01;
+                this.driftRadius = Math.random() * 30 + 10; // How wide it sways
+
+                // Rotation properties
+                this.rotation = Math.random() * 360;
+                this.rotationSpeed = (Math.random() - 0.5) * 2;
+
+                // Set initial styles
+                this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg) scale(${this.size})`;
+                this.element.style.opacity = Math.random() * 0.4 + 0.6;
+                
+                petalContainer.appendChild(this.element);
+            }
+
+            update() {
+                // Fall down
+                this.y += this.speedY;
+                
+                // Drift left/right using cosine
+                this.driftAngle += this.driftSpeed;
+                this.x += Math.cos(this.driftAngle) * 0.5; // subtle horizontal movement
+
+                // Rotate
+                this.rotation += this.rotationSpeed;
+
+                // Apply transforms
+                // Using translate3d for better performance
+                this.element.style.transform = `translate3d(${this.x}px, ${this.y}px, 0) rotate(${this.rotation}deg) scale(${this.size})`;
+
+                // Recycle petal if it goes off screen
+                if (this.y > window.innerHeight + 50) {
+                    this.y = -50;
+                    this.x = Math.random() * window.innerWidth;
+                }
+            }
+        }
+
+        // Initialize background petals
+        for (let i = 0; i < 30; i++) {
+            activePetals.push(new Petal());
+        }
+
+        // Animation Loop
+        function animatePetals() {
+            activePetals.forEach(petal => petal.update());
+            requestAnimationFrame(animatePetals);
+        }
+        animatePetals();
+
+
+        // ================= Wind Gust Interaction =================
+        const mainScene = document.getElementById('mainScene');
+        let gustTimeout;
+
+        document.addEventListener('click', () => {
+            // 1. Trigger faster CSS animation styles
+            mainScene.classList.add('wind-gust-active');
+            
+            // Reset timer if clicked rapidly
+            clearTimeout(gustTimeout);
+            gustTimeout = setTimeout(() => {
+                mainScene.classList.remove('wind-gust-active');
+            }, 1000); // Match the duration of the 'branchSwayGust' animation
+
+            // 2. Spawn a burst of new petals
+            for(let i = 0; i < 15; i++) {
+                 // Add new petals to the array so they get picked up by the animation loop
+                 // Pass 'true' to indicate these are part of a burst
+                activePetals.push(new Petal(true));
+            }
+            
+            // Optional: Manage performance by limiting total petals if clicks are spammed
+            if (activePetals.length > 100) {
+                // Remove oldest petals from DOM and array
+                const petalsToRemove = activePetals.slice(0, activePetals.length - 100);
+                petalsToRemove.forEach(p => p.element.remove());
+                activePetals = activePetals.slice(activePetals.length - 100);
+            }
+        });
+
+    </script>
+</body>
+</html>
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Paper Cut Floral</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #f3e2d9;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            /* Texture background */
+            background-image: 
+                linear-gradient(45deg, rgba(245, 230, 223, 0.4) 25%, transparent 25%, transparent 75%, rgba(245, 230, 223, 0.4) 75%, rgba(245, 230, 223, 0.4)),
+                linear-gradient(-45deg, rgba(245, 230, 223, 0.4) 25%, transparent 25%, transparent 75%, rgba(245, 230, 223, 0.4) 75%, rgba(245, 230, 223, 0.4)),
+                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px, 20px 20px, 10px 10px, 10px 10px;
+            background-position: 0 0, 10px 0, 0 0, 0 0;
+        }
+
+        .overlay-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through if needed */
+        }
+
+        /* --- ANIMATIONS --- */
+
+        /* 1. Gentle Sway for whole branches */
+        @keyframes branchSway {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(1.5deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* 2. Flutter for individual leaves/flowers */
+        @keyframes flutter {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        /* 3. Falling Petals */
+        @keyframes fall {
+            0% {
+                transform: translate(0, -10vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translate(100px, 110vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Classes to apply animations */
+        .anim-sway-slow {
+            animation: branchSway 6s ease-in-out infinite;
+            transform-origin: bottom left;
+        }
+        .anim-sway-fast {
+            animation: branchSway 5s ease-in-out infinite reverse;
+            transform-origin: top left;
+        }
+        .anim-sway-right {
+            animation: branchSway 7s ease-in-out infinite;
+            transform-origin: bottom right;
+        }
+
+        .anim-flutter {
+            animation: flutter 3s ease-in-out infinite;
+            transform-origin: center;
+        }
+
+        /* Falling Petal Styling */
+        .petal {
+            position: absolute;
+            top: -50px;
+            background: radial-gradient(circle, #f9dce0 0%, #f2bdc3 100%);
+            width: 15px;
+            height: 15px;
+            border-radius: 100% 0 100% 0; /* Leaf/Petal shape */
+            opacity: 0.8;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.1);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @media (min-aspect-ratio: 16/9) {
+             .overlay-svg { width: 100%; height: auto; top: 50%; transform: translateY(-50%); }
+        }
+         @media (max-aspect-ratio: 16/9) {
+             .overlay-svg { width: auto; height: 100%; left: 50%; transform: translateX(-50%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="petalContainer">
+        
+        <svg class="overlay-svg" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="flowerGrad1" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                    <stop offset="0%" style="stop-color:#ffffff" />
+                    <stop offset="60%" style="stop-color:#f9dce0" />
+                    <stop offset="100%" style="stop-color:#f2bdc3" />
+                </radialGradient>
+                <radialGradient id="flowerCenterGrad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" style="stop-color:#e68a83" />
+                    <stop offset="100%" style="stop-color:#d97169" />
+                </radialGradient>
+                <linearGradient id="leafDarkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#bca299" />
+                    <stop offset="100%" style="stop-color:#9e837a" />
+                </linearGradient>
+                <linearGradient id="leafPinkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#eacbc6" />
+                    <stop offset="100%" style="stop-color:#dcb0a9" />
+                </linearGradient>
+
+                <filter id="paperShadow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur" />
+                    <feOffset in="blur" dx="4" dy="8" result="offsetBlur" />
+                    <feFlood flood-color="#7a5a4f" flood-opacity="0.35" result="offsetColor" />
+                    <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetShadow" />
+                    <feMerge>
+                        <feMergeNode in="offsetShadow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+                 <filter id="paperShadowSoft" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
+                    <feOffset in="blur" dx="2" dy="4" result="offsetBlur" />
+                    <feFlood flood-color="#7a5a4f" flood-opacity="0.25" result="offsetColor" />
+                    <feComposite in="offsetColor" in2="offsetBlur" operator="in" result="offsetShadow" />
+                    <feMerge>
+                        <feMergeNode in="offsetShadow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+
+                <g id="cherryBlossom">
+                    <g filter="url(#paperShadow)">
+                        <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(0) scale(1)"/>
+                        <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(72) scale(1)"/>
+                        <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(144) scale(1)"/>
+                        <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(216) scale(1)"/>
+                        <path d="M0,-70 C-30,-90 -70,-50 -40,0 C-70,50 -30,90 0,70 C30,90 70,50 40,0 C70,-50 30,-90 0,-70 Z" fill="url(#flowerGrad1)" transform="rotate(288) scale(1)"/>
+                    </g>
+                    <circle cx="0" cy="0" r="15" fill="url(#flowerCenterGrad)" filter="url(#paperShadowSoft)"/>
+                    <g stroke="#c45e54" stroke-width="2" fill="none">
+                        <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(10)"/>
+                        <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(80)"/>
+                        <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(150)"/>
+                        <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(220)"/>
+                        <line x1="0" y1="0" x2="0" y2="-20" transform="rotate(290)"/>
+                    </g>
+                </g>
+
+                <path id="leafShape1" d="M0,0 Q30,-40 60,0 Q30,40 0,0 Z" filter="url(#paperShadow)"/>
+                <path id="leafShape2" d="M0,0 Q40,-60 80,0 Q40,60 0,0 Z" filter="url(#paperShadow)"/>
+                <circle id="berry" r="10" fill="url(#flowerCenterGrad)" filter="url(#paperShadowSoft)"/>
+            </defs>
+
+            <g class="anim-sway-slow" transform-origin="100px 950px"> 
+                <g transform="translate(100, 950)">
+                    <path d="M0,0 C50,-50 150,-150 300,-200 M150,-150 C200,-250 180,-350 220,-450 M50,-50 C-20,-150 10,-250 -30,-350" stroke="#a68b83" stroke-width="4" fill="none" filter="url(#paperShadowSoft)"/>
+
+                    <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(20, -80) rotate(-30) scale(1.2)" class="anim-flutter"/>
+                    <use href="#leafShape1" fill="url(#leafDarkGrad)" transform="translate(280, -180) rotate(60) scale(1.5)" class="anim-flutter"/>
+                    <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(350, -100) rotate(10) scale(1.1)"/>
+                    <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(-40, -200) rotate(-80) scale(1)"/>
+
+                    <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(100, -10) rotate(20) scale(1.3)" class="anim-flutter"/>
+                    <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(320, -250) rotate(45) scale(1)"/>
+                    
+                    <use href="#cherryBlossom" transform="translate(180, -320) scale(1.2)" class="anim-flutter"/> 
+                    <use href="#cherryBlossom" transform="translate(340, -450) scale(0.8) rotate(30)"/>
+                    <use href="#cherryBlossom" transform="translate(80, -180) scale(1.3)" class="anim-flutter"/>
+                    <use href="#cherryBlossom" transform="translate(-20, -300) scale(0.9) rotate(-20)"/>
+                    <use href="#cherryBlossom" transform="translate(280, -120) scale(1) rotate(10)"/>
+                    <use href="#cherryBlossom" transform="translate(140, 50) scale(1.4) rotate(-10)" class="anim-flutter"/>
+                    <use href="#cherryBlossom" transform="translate(380, 0) scale(0.9) rotate(20)"/>
+                    
+                    <use href="#berry" transform="translate(360, -320)"/>
+                    <use href="#berry" transform="translate(240, -400) scale(0.8)"/>
+                    <use href="#berry" transform="translate(40, -400)"/>
+                    <use href="#berry" transform="translate(480, -100) scale(1.2)"/>
+                </g>
+            </g>
+
+             <g class="anim-sway-fast" transform-origin="200px 100px">
+                <g transform="translate(200, 100)">
+                    <path d="M0,0 C100,50 250,20 400,100 M250,20 C300,-50 400,-30 500,0" stroke="#a68b83" stroke-width="4" fill="none" filter="url(#paperShadowSoft)"/>
+
+                    <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(50, 0) rotate(10) scale(1.2)"/>
+                    <use href="#leafShape1" fill="url(#leafDarkGrad)" transform="translate(300, 80) rotate(90) scale(1.3)" class="anim-flutter"/>
+                    <use href="#leafShape2" fill="url(#leafPinkGrad)" transform="translate(150, 80) rotate(40) scale(1.1)"/>
+
+                    <use href="#cherryBlossom" transform="translate(200, 30) scale(0.9) rotate(-20)" class="anim-flutter"/>
+                    
+                    <g transform="translate(480, 80)">
+                        <use href="#berry" transform="translate(0,0) scale(0.8)"/>
+                        <use href="#berry" transform="translate(20,10) scale(0.9)"/>
+                        <use href="#berry" transform="translate(10,-15) scale(0.7)"/>
+                    </g>
+                    <use href="#berry" transform="translate(20, 150)"/>
+                    <use href="#berry" transform="translate(-50, 80) scale(0.8)"/>
+                </g>
+            </g>
+            
+            <g class="anim-sway-right" transform-origin="1800px 800px">
+                <g transform="translate(1800, 800)">
+                    <path d="M0,0 C-50,-50 -100,-150 -200,-250 M-100,-150 C-50,-250 50,-300 0,-400" stroke="#a68b83" stroke-width="3" fill="none" filter="url(#paperShadowSoft)"/>
+                    <use href="#leafShape2" fill="url(#leafDarkGrad)" transform="translate(-50, -80) rotate(-80) scale(1)" class="anim-flutter"/>
+                    <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(-180, -180) rotate(-40) scale(1.2)"/>
+                    <use href="#berry" transform="translate(-100, -280) scale(1.3)"/>
+                    <use href="#berry" transform="translate(-250, -350) scale(1.1)"/>
+                </g>
+            </g>
+
+            <g class="anim-sway-fast" transform-origin="1750px 150px">
+                <g transform="translate(1750, 150)">
+                    <path d="M0,0 C-30,30 -80,80 -150,120 M-80,80 C-120,40 -180,20 -250,50" stroke="#a68b83" stroke-width="3" fill="none" filter="url(#paperShadowSoft)"/>
+                    <use href="#leafShape1" fill="url(#leafPinkGrad)" transform="translate(-50, 50) rotate(30) scale(0.8)" class="anim-flutter"/>
+                    <g transform="translate(-180, -50)">
+                        <use href="#berry" transform="translate(0,0) scale(0.8)"/>
+                        <use href="#berry" transform="translate(30,10) scale(0.9)"/>
+                        <use href="#berry" transform="translate(15,-20) scale(0.7)"/>
+                        <use href="#berry" transform="translate(50,-10) scale(0.8)"/>
+                    </g>
+                </g>
+            </g>
+
+            <use href="#berry" transform="translate(1100, 200) scale(0.9)"/>
+            <use href="#berry" transform="translate(1300, 750) scale(1.1)"/>
+            <use href="#berry" transform="translate(600, 950) scale(1)"/>
+            <use href="#berry" transform="translate(350, 1100) scale(1.2)"/>
+             <use href="#berry" transform="translate(550, 1100) scale(0.9)"/>
+
+        </svg>
+    </div>
+
+    <script>
+        function createPetal() {
+            const container = document.getElementById('petalContainer');
+            const petal = document.createElement('div');
+            petal.classList.add('petal');
+            
+            // Random positioning and animation properties
+            const startLeft = Math.random() * 100; // Percentage across screen
+            const duration = Math.random() * 5 + 5; // Between 5 and 10 seconds
+            const delay = Math.random() * 5; 
+            const size = Math.random() * 0.5 + 0.5; // Scale
+
+            petal.style.left = startLeft + '%';
+            petal.style.animation = `fall ${duration}s linear ${delay}s infinite`;
+            petal.style.transform = `scale(${size})`;
+
+            container.appendChild(petal);
+        }
+
+        // Create 25 petals
+        for (let i = 0; i < 25; i++) {
+            createPetal();
+        }
+    </script>
+</body>
+</html> -->
