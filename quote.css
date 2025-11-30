@@ -1,0 +1,232 @@
+/* RESET */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Georgia", serif;
+}
+
+/* BACKGROUND IMAGE + SIMPLE COLOR */
+body {
+  background: 
+    linear-gradient(rgba(255,255,255,0.2), rgba(255,255,255,0.2)),
+    url("b1.png");   /* <-- CHANGE your image name here */
+  
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* GLASS CENTER PAGE */
+.page {
+  width: 80%;
+  max-width: 600px;
+  padding: 40px;
+
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.3);
+
+  box-shadow: 0 0 25px rgba(0,0,0,0.3);
+
+  animation: fadeIn 1s ease forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes fadeIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* HEADING */
+h1 {
+  font-size: 26px;
+  background: rgba(255,255,0,0.6);
+  padding: 5px 10px;
+  display: inline-block;
+  color: black;
+  box-shadow: 0 0 15px yellow;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+  from { box-shadow: 0 0 5px yellow; }
+  to   { box-shadow: 0 0 20px yellow; }
+}
+
+/* DESCRIPTION */
+.description {
+  font-size: 18px;
+  line-height: 1.7;
+  margin-top: 15px;
+}
+
+/* AUTHOR */
+.author {
+  text-align: right;
+  font-size: 18px;
+  font-style: italic;
+  margin-top: 20px;
+}
+
+/* FOOTER */
+.footer {
+  margin-top: 30px;
+  text-align: center;
+  color: rgb(147, 24, 24);
+}
+
+#liveTime {
+  font-size: 18px;
+  margin-top: 5px;
+  display: block;
+}
+/* 🌈 RAINBOW BORDER AROUND CENTRE GLASS BOX */
+.page {
+  position: relative;
+  width: 80%;
+  max-width: 600px;
+  padding: 40px;
+
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border-radius: 20px;
+  z-index: 1;
+
+  animation: fadeIn 1s ease forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* RAINBOW BORDER OUTLINE */
+.page::before {
+  content: "";
+  position: absolute;
+  inset: -3px;          /* border width */
+  border-radius: 22px;  /* border radius match */
+  padding: 3px;
+
+  background: linear-gradient(
+    90deg,
+    #ff0000,
+    #ff8c00,
+    #ffff00,
+    #00ff00,
+    #0000ff,
+    #8a2be2,
+    #ff00ff
+  );
+  background-size: 400%;
+  animation: rainbowMove 12s linear infinite;
+
+  -webkit-mask: 
+       linear-gradient(#fff 0 0) content-box, 
+       linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+
+  z-index: -1;
+}
+
+/* ANIMATION */
+@keyframes rainbowMove {
+  0% { background-position: 0% }
+  100% { background-position: 400% }
+}
+/* 📱 MOBILE VIEW */
+@media (max-width: 600px) {
+
+  body {
+    padding: 10px;
+  }
+
+  .page {
+    width: 95%;
+    padding: 25px;
+    border-radius: 16px;
+  }
+
+  .page::before {
+    inset: -2px;        /* thinner rainbow border */
+    border-radius: 18px;
+  }
+
+  h1 {
+    font-size: 20px;
+    padding: 4px 8px;
+  }
+
+  .description {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  .author {
+    font-size: 16px;
+  }
+
+  .footer {
+    font-size: 14px;
+  }
+
+  #liveTime {
+    font-size: 16px;
+  }
+}
+@media (max-width: 768px) {
+
+  .page {
+    width: 85%;
+    padding: 30px;
+    border-radius: 18px;
+  }
+
+  .page::before {
+    inset: -2.5px;  
+    border-radius: 20px;
+  }
+
+  h1 {
+    font-size: 22px;
+  }
+
+  .description {
+    font-size: 17px;
+  }
+
+  .author {
+    font-size: 17px;
+  }
+
+  #liveTime {
+    font-size: 17px;
+  }
+}
+@media (max-width: 992px) {
+
+  .page {
+    width: 75%;
+    padding: 35px;
+  }
+
+  h1 {
+    font-size: 24px;
+  }
+
+  .description {
+    font-size: 18px;
+  }
+
+  .author {
+    font-size: 18px;
+  }
+}
